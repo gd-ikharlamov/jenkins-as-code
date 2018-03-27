@@ -1,0 +1,8 @@
+ansible:latest
+git:latest
+workflow-aggregator:latest
+job-dsl:latest
+role-strategy:latest
+ssh-agent:latest
+ansicolor:latest
+ldap:latest

@@ -1,0 +1,44 @@
+#!/usr/bin/env groovy
+
+node {
+
+    def metabase_version = "0.28.1"
+    def git_repo_metabase = "https://github.com/metabase/metabase.git"
+
+    dir('metabase'){
+        stage("Pull metabase repo"){
+            checkout([$class: 'GitSCM', branches: [[name: 'tags/v' + metabase_version ]],
+                                        browser: [$class: 'GithubWeb',
+                                                   repoUrl: 'https://github.com/metabase/metabase'],
+                                        userRemoteConfigs: [[url: git_repo_metabase ]]
+            ])
+        }
+
+        stage("Update metabase version"){
+            docker.image("${registry}/metabase-buildenv:latest").inside("-e HOME=${env.WORKDIR}") {
+                sh 'sed "s/webpack --bail/webpack --bail --verbose/g" -i bin/build'
+                sh './bin/build version'
+            }
+        }
+
+        stage("Build metabase frontend"){
+            docker.image("${registry}/metabase-buildenv:latest").inside("-e HOME=${env.WORKDIR}") {
+                sh './bin/build frontend-deps'
+                sh './bin/build frontend'
+            }
+        }
+
+        stage("Build metabase backend"){
+            docker.image("${registry}/metabase-buildenv:latest").inside("-e HOME=${env.WORKDIR}") {
+                sh './bin/build uberjar'
+            }
+        }
+    }
+
+    stage("Cleanup"){
+        sh "docker rmi -f ${registry}/metabase:${metabase_version}"
+        dir('metabase') {
+            deleteDir()
+        }
+    }
+}
